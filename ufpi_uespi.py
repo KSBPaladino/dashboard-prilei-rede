@@ -2,6 +2,34 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+# Função simples de verificação
+def check_password():
+    def password_entered():
+        if st.session_state["password"] == st.secrets["password"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # remove a senha do estado por segurança
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # Primeira vez que o usuário acessa
+        st.text_input("Digite a senha para acessar o Dashboard", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        # Senha incorreta
+        st.text_input("Senha incorreta. Tente novamente:", type="password", on_change=password_entered, key="password")
+        st.error("😕 Senha inválida")
+        return False
+    else:
+        # Senha correta
+        return True
+
+# Só executa o resto do app se a senha estiver correta
+if check_password():
+    st.success("Acesso liberado!")
+    # COLOQUE TODO O RESTO DO SEU CÓDIGO AQUI DENTRO (Gráficos, Tabelas, etc.)
+    st.write("Bem-vindo ao Dashboard do Prilei")
+
 # 1. Configuração da página
 st.set_page_config(page_title="Analytics PRILEI - UFPI/UESPI/UNICAP", layout="wide")
 
