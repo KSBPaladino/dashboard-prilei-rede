@@ -81,7 +81,7 @@ if check_password():
             m1.metric("Matrículas Totais", int(total_mat))
             m2.metric("Total de Formados", int(total_for))
             m3.metric("Taxa de Conclusão Geral", f"{taxa_real_geral:.1f}%")
-            m4.metric("Qtd. Cursos/Polos", len(df_filtrado))
+            m4.metric("Qtd. Turmas", len(df_filtrado))
 
             st.divider()
 
