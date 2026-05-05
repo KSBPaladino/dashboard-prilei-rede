@@ -3,41 +3,46 @@ import pandas as pd
 import plotly.express as px
 import os
 
-# 1. CONFIGURAÇÃO DA PÁGINA (Sempre no topo)
+# 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(page_title="Analytics PRILEI - UFPI/UESPI/UNICAP", layout="wide")
 
-# 2. FUNÇÃO DE VERIFICAÇÃO DE SENHA
+# 2. FUNÇÃO DE VERIFICAÇÃO DE SENHA (Centralizada e com botão)
 def check_password():
-    def password_entered():
-        if st.session_state["password"] == st.secrets["password"]:
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-
     if "password_correct" not in st.session_state:
-        st.text_input("Digite a senha para acessar o Dashboard", type="password", on_change=password_entered, key="password")
-        return False
-    elif not st.session_state["password_correct"]:
-        st.text_input("Senha incorreta. Tente novamente:", type="password", on_change=password_entered, key="password")
-        st.error("😕 Senha inválida")
-        return False
-    else:
+        st.session_state["password_correct"] = False
+
+    if st.session_state["password_correct"]:
         return True
+
+    # Centralização da interface de login
+    empty_l, col_login, empty_r = st.columns([1, 2, 1])
+
+    with col_login:
+        st.markdown("### 🔐 Acesso Restrito")
+        password = st.text_input("Digite a senha para acessar o Dashboard", type="password")
+        if st.button("Acessar"):
+            if password == st.secrets["password"]:
+                st.session_state["password_correct"] = True
+                st.rerun()
+            else:
+                st.error("😕 Senha inválida")
+    return False
 
 # 3. BLOCO PROTEGIDO
 if check_password():
-    # --- Início do conteúdo protegido (Indentaçao de 4 espaços) ---
+
+    # Cor dos indicadores principais para azul claro padrão (#5dade2)
+    st.markdown("<style>[data-testid='stMetricValue'] { font-size: 28px; color: #5dade2; font-weight: bold; }</style>", unsafe_allow_html=True)
 
     if os.path.exists("logo_prilei.png"):
         st.image("logo_prilei.png", width=250)
-
-    st.markdown("<style>[data-testid='stMetricValue'] { font-size: 28px; }</style>", unsafe_allow_html=True)
 
     st.title("Painel Analítico de Conclusão - PRILEI")
     st.markdown("Rede Nordeste: **UFPI** - **UESPI** - **UNICAP**")
 
     CORES_INST = {'UFPI': '#003366', 'UESPI': '#cc0000', 'UNICAP': '#1a7a1a'}
+    AZUL_FOR = '#003366'  # Azul Escuro
+    AZUL_NAO = '#5dade2'  # Azul Claro
 
     @st.cache_data
     def carregar_dados():
@@ -85,7 +90,7 @@ if check_password():
 
             st.divider()
 
-            # 5. LINHA 1: Barras por Curso e Pizza Global
+            # 5. LINHA 1: Barras por Curso e Pizza Global (Azul)
             col1, col2 = st.columns([2, 1])
             with col1:
                 st.markdown("**Taxa de Conclusão por Curso (%)**")
@@ -95,10 +100,10 @@ if check_password():
             with col2:
                 st.markdown("**Proporção Global (Formados vs Não)**")
                 fig2 = px.pie(values=[total_for, total_mat - total_for], names=['Formados', 'Não Formados'],
-                            hole=0.5, color_discrete_map={'Formados': '#2ca02c', 'Não Formados': '#d62728'})
+                            hole=0.5, color_discrete_map={'Formados': AZUL_FOR, 'Não Formados': AZUL_NAO})
                 st.plotly_chart(fig2, use_container_width=True)
 
-            # 6. LINHA 2: Ranking Municípios e Volume Institucional
+            # 6. LINHA 2: Ranking Municípios e Volume Institucional (Azul)
             col3, col4 = st.columns(2)
             with col3:
                 st.markdown("**Top 10 Municípios (Ranking Consolidado)**")
@@ -114,10 +119,10 @@ if check_password():
                 df_abs = df_filtrado.groupby('Instituição da Rede')[['Formados', 'Não Formados']].sum().reset_index()
                 df_abs_melt = df_abs.melt(id_vars='Instituição da Rede', var_name='Status', value_name='Qtd')
                 fig4 = px.bar(df_abs_melt, x='Instituição da Rede', y='Qtd', color='Status', barmode='stack',
-                             color_discrete_map={'Formados': '#2ca02c', 'Não Formados': '#d62728'})
+                             color_discrete_map={'Formados': AZUL_FOR, 'Não Formados': AZUL_NAO})
                 st.plotly_chart(fig4, use_container_width=True)
 
-            # 7. NOVO: LINHA 3 - Treemap e Box Plot (Restaurados)
+            # 7. LINHA 3 - Treemap e Box Plot
             st.divider()
             col5, col6 = st.columns(2)
             with col5:
@@ -132,14 +137,27 @@ if check_password():
                              color='Instituição da Rede', points="all", color_discrete_map=CORES_INST)
                 st.plotly_chart(fig6, use_container_width=True)
 
-            # 8. Tabela Detalhada
-            st.subheader("📋 Base de Dados Completa")
+            # 8. Tabela Detalhada e Botão de Download
+            st.divider()
+            col_tab1, col_tab2 = st.columns([3, 1])
+            with col_tab1:
+                st.subheader("📋 Base de Dados Completa")
+            with col_tab2:
+                # Gerar CSV dos dados filtrados
+                csv = df_filtrado.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Download dos Dados (CSV)",
+                    data=csv,
+                    file_name='dados_prilei_filtrados.csv',
+                    mime='text/csv',
+                )
+
             st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
 
     except Exception as e:
         st.error(f"❌ Erro ao processar o dashboard: {e}")
 
-    # Rodapé Institucional
+    # Rodapé Institucional (Original)
     st.divider()
     vazio1, vazio2, col_ufpi, col_uespi, col_unicap = st.columns([4, 1, 1, 1, 1])
     with col_ufpi:
