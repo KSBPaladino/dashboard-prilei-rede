@@ -14,25 +14,32 @@ def check_password():
     if st.session_state["password_correct"]:
         return True
 
-    # Centralização da interface de login
-    empty_l, col_login, empty_r = st.columns([1, 2, 1])
+    # Interface de login centralizada
+    _, col_login, _ = st.columns([1, 2, 1])
 
     with col_login:
         st.markdown("### 🔐 Acesso Restrito")
-        password = st.text_input("Digite a senha para acessar o Dashboard", type="password")
-        if st.button("Acessar"):
-            if password == st.secrets["password"]:
-                st.session_state["password_correct"] = True
-                st.rerun()
-            else:
-                st.error("😕 Senha inválida")
+        with st.form("login_form"):
+            password = st.text_input("Digite a senha para acessar o Dashboard", type="password")
+            submit = st.form_submit_button("Acessar")
+
+            if submit:
+                if password == st.secrets["password"]:
+                    st.session_state["password_correct"] = True
+                    st.rerun()
+                else:
+                    st.error("😕 Senha inválida")
     return False
 
 # 3. BLOCO PROTEGIDO
 if check_password():
 
-    # Cor dos indicadores principais para azul claro padrão (#5dade2)
-    st.markdown("<style>[data-testid='stMetricValue'] { font-size: 28px; color: #5dade2; font-weight: bold; }</style>", unsafe_allow_html=True)
+    # CSS: Cor dos indicadores em azul claro (#5dade2)
+    st.markdown("""
+        <style>
+        [data-testid='stMetricValue'] { font-size: 28px; color: #5dade2; font-weight: bold; }
+        </style>
+        """, unsafe_allow_html=True)
 
     if os.path.exists("logo_prilei.png"):
         st.image("logo_prilei.png", width=250)
@@ -40,9 +47,12 @@ if check_password():
     st.title("Painel Analítico de Conclusão - PRILEI")
     st.markdown("Rede Nordeste: **UFPI** - **UESPI** - **UNICAP**")
 
+    # Definição de Cores das Instituições
     CORES_INST = {'UFPI': '#003366', 'UESPI': '#cc0000', 'UNICAP': '#1a7a1a'}
-    AZUL_FOR = '#003366'  # Azul Escuro
-    AZUL_NAO = '#5dade2'  # Azul Claro
+
+    # NOVAS CORES SINCRONIZADAS (Baseadas na imagem do gráfico de Pizza/Donut)
+    AZUL_FOR = '#0068c9'  # Azul vibrante da segunda imagem
+    AZUL_NAO = '#83c9ff'  # Azul claro celeste da segunda imagem
 
     @st.cache_data
     def carregar_dados():
@@ -83,27 +93,36 @@ if check_password():
             total_for = df_filtrado['Formados'].sum()
             taxa_real_geral = (total_for / total_mat * 100) if total_mat > 0 else 0
 
-            m1.metric("Matrículas Totais", int(total_mat))
-            m2.metric("Total de Formados", int(total_for))
+            m1.metric("Matrículas Totais", f"{int(total_mat):,}".replace(",", "."))
+            m2.metric("Total de Formados", f"{int(total_for):,}".replace(",", "."))
             m3.metric("Taxa de Conclusão Geral", f"{taxa_real_geral:.1f}%")
             m4.metric("Qtd. Turmas", len(df_filtrado))
 
             st.divider()
 
-            # 5. LINHA 1: Barras por Curso e Pizza Global (Azul)
+            # 5. LINHA 1: Barras por Curso e Pizza Global
             col1, col2 = st.columns([2, 1])
             with col1:
                 st.markdown("**Taxa de Conclusão por Curso (%)**")
-                fig1 = px.bar(df_filtrado, x='Curso', y='Porcentagem de Formados', color='Instituição da Rede',
-                            barmode='group', text_auto='.1f', color_discrete_map=CORES_INST)
+                fig1 = px.bar(df_filtrado,
+                            x='Curso',
+                            y='Porcentagem de Formados',
+                            color='Instituição da Rede',
+                            barmode='group',
+                            text_auto='.1f',
+                            color_discrete_map=CORES_INST,
+                            hover_data=['Município', 'Matrículas Iniciais', 'Formados'])
+                fig1.update_xaxes(type='category', tickangle=45)
                 st.plotly_chart(fig1, use_container_width=True)
+
             with col2:
                 st.markdown("**Proporção Global (Formados vs Não)**")
+                # Gráfico com as novas cores vibrantes
                 fig2 = px.pie(values=[total_for, total_mat - total_for], names=['Formados', 'Não Formados'],
                             hole=0.5, color_discrete_map={'Formados': AZUL_FOR, 'Não Formados': AZUL_NAO})
                 st.plotly_chart(fig2, use_container_width=True)
 
-            # 6. LINHA 2: Ranking Municípios e Volume Institucional (Azul)
+            # 6. LINHA 2: Ranking Municípios e Volume Institucional
             col3, col4 = st.columns(2)
             with col3:
                 st.markdown("**Top 10 Municípios (Ranking Consolidado)**")
@@ -114,11 +133,18 @@ if check_password():
                              text_auto='.1f', color_discrete_map=CORES_INST)
                 fig3.update_layout(yaxis={'categoryorder':'total ascending'})
                 st.plotly_chart(fig3, use_container_width=True)
+
             with col4:
                 st.markdown("**Volume Total por Instituição**")
                 df_abs = df_filtrado.groupby('Instituição da Rede')[['Formados', 'Não Formados']].sum().reset_index()
                 df_abs_melt = df_abs.melt(id_vars='Instituição da Rede', var_name='Status', value_name='Qtd')
-                fig4 = px.bar(df_abs_melt, x='Instituição da Rede', y='Qtd', color='Status', barmode='stack',
+
+                # Cores agora idênticas às da Pizza/Donut (Vibrantes)
+                fig4 = px.bar(df_abs_melt,
+                             x='Instituição da Rede',
+                             y='Qtd',
+                             color='Status',
+                             barmode='stack',
                              color_discrete_map={'Formados': AZUL_FOR, 'Não Formados': AZUL_NAO})
                 st.plotly_chart(fig4, use_container_width=True)
 
@@ -143,13 +169,13 @@ if check_password():
             with col_tab1:
                 st.subheader("📋 Base de Dados Completa")
             with col_tab2:
-                # Gerar CSV dos dados filtrados
                 csv = df_filtrado.to_csv(index=False).encode('utf-8')
                 st.download_button(
                     label="📥 Download dos Dados (CSV)",
                     data=csv,
                     file_name='dados_prilei_filtrados.csv',
                     mime='text/csv',
+                    use_container_width=True
                 )
 
             st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
@@ -157,7 +183,7 @@ if check_password():
     except Exception as e:
         st.error(f"❌ Erro ao processar o dashboard: {e}")
 
-    # Rodapé Institucional (Original)
+    # Rodapé Institucional
     st.divider()
     vazio1, vazio2, col_ufpi, col_uespi, col_unicap = st.columns([4, 1, 1, 1, 1])
     with col_ufpi:
